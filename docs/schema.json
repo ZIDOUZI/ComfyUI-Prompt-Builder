@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ComfyUI Prompt Builder Tag Schema",
+  "description": "Schema for tag definitions in YAML files",
+  "definitions": {
+    "tag": {
+      "type": "object",
+      "required": ["name", "wiki_link"],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "wiki_link": {
+          "type": "string"
+        },
+        "alias": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "type": "array",
+  "items": {
+    "$ref": "#/definitions/tag"
+  }
+}
