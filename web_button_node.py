@@ -1,10 +1,8 @@
 import os
+import yaml
 from aiohttp import web
 from server import PromptServer
-import yaml
-import uuid
-import json
-import os
+
 
 class TagSelector:
     @classmethod
@@ -46,20 +44,10 @@ class CLIPTagEncode:
         return ([[cond, output]], )
 
 
-@PromptServer.instance.routes.get("/extensions/ComfyUI-prompt-builder/editor.html")
-async def editor(request):
-    return web.FileResponse(os.path.join(os.path.dirname(os.path.abspath(__file__)), "web/html/editor.html"))
-
-@PromptServer.instance.routes.get("/extensions/ComfyUI-prompt-builder/css/{filename}")
-async def static_css(request):
-    filename = request.match_info.get('filename', '')
-    return web.FileResponse(os.path.join(os.path.dirname(os.path.abspath(__file__)), "web/css", filename))
-
-@PromptServer.instance.routes.get("/extensions/ComfyUI-prompt-builder/js/{filename}")
-async def static_js(request):
-    filename = request.match_info.get('filename', '')
-    return web.FileResponse(os.path.join(os.path.dirname(os.path.abspath(__file__)), "web/js", filename))
-
+PromptServer.instance.routes.static(
+    "/extensions/ComfyUI-prompt-builder/web/",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "web/")
+)
 
 data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 def build_structure(path, rel_path=""):

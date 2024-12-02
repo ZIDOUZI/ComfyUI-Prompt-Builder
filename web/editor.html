@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ComfyUI Prompt Builder - Tag Editor</title>
+    <link rel="stylesheet" href="css/editor.css">
+</head>
+
+<body>
+    <!-- Templates -->
+    <template>
+        <!-- Tag Card Template -->
+        <div class="tag-card">
+            <div class="tag-header">
+                <div class="tag-info">
+                    <div class="tag-title"></div>
+                    <div class="tag-alias"></div>
+                </div>
+                <div class="tag-actions">
+                    <button class="action-btn" id="copy-btn" title="Copy tag">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                    </button>
+                    <button class="action-btn" id="link-btn" title="Open wiki">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                            <polyline points="15 3 21 3 21 9"></polyline>
+                            <line x1="10" y1="14" x2="21" y2="3"></line>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="tag-description"></div>
+        </div>
+
+        <!-- Alias Item Template -->
+        <div class="alias-item">
+            <span class="alias-text"></span>
+            <div class="alias-actions">
+                <button class="alias-btn like-btn" title="Like alias">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Selected Tag Template -->
+        <div class="selected-tag">
+            <div class="tag-name"></div>
+            <div class="tag-actions">
+                <button class="action-btn decrease-weight" title="Decrease weight" style="color: #e74c3c">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                </button>
+                <button class="action-btn increase-weight" title="Increase weight" style="color: #2ecc71">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                </button>
+                <button class="action-btn remove-tag" title="Remove tag" style="color: #95a5a6">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="15" y1="9" x2="9" y2="15"></line>
+                        <line x1="9" y1="9" x2="15" y2="15"></line>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- File Browser Templates -->
+        <div class="folder-item">
+            <div class="folder-header">
+                <svg class="folder-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                </svg>
+                <span class="folder-name"></span>
+            </div>
+            <div class="folder-content" hidden></div>
+        </div>
+
+        <div class="file-item">
+            <svg class="file-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+            </svg>
+            <span class="file-name"></span>
+        </div>
+    </template>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Left Panel: File Browser -->
+        <div class="panel left-panel">
+            <div class="panel-header">Files</div>
+            <div class="panel-content" id="file-browser"></div>
+        </div>
+
+        <!-- Center Panel: Tag Cards -->
+        <div class="panel center-panel">
+            <div class="panel-header">
+                <div class="search-container">
+                    <input type="text" id="search-input" placeholder="Search tags...">
+                    <button id="clear-search-btn" title="Clear search">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
+                <div class="header-actions">
+                    <button id="theme-toggle" class="action-button" title="Toggle theme">
+                        <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="5"></circle>
+                            <line x1="12" y1="1" x2="12" y2="3"></line>
+                            <line x1="12" y1="21" x2="12" y2="23"></line>
+                            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                            <line x1="1" y1="12" x2="3" y2="12"></line>
+                            <line x1="21" y1="12" x2="23" y2="12"></line>
+                            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                        </svg>
+                        <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="panel-content">
+                <div class="tag-cards"></div>
+                <button id="scroll-top" class="fab" title="Go to top" hidden>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <line x1="12" y1="19" x2="12" y2="5"></line>
+                        <polyline points="5 12 12 5 19 12"></polyline>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Right Panel: Selected Tags -->
+        <div class="panel right-panel">
+            <div class="panel-header">
+                Selected Tags
+                <button>TODO</button>
+            </div>
+            <div class="panel-content">
+                <div class="tags-list"></div>
+            </div>
+            <div class="panel-footer">
+                <button class="footer-button commit-button" onclick="commitAndClose()">Commit</button>
+                <button class="footer-button close-button" onclick="justClose()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/editor.js"></script>
+</body>
+
+</html>

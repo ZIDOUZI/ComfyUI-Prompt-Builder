@@ -10,7 +10,7 @@ let tagStructure = null;
 let currentTags = null;  // Store current displayed tags
 
 // DOM Elements
-const tagList = document.getElementById('tagList');
+const tagList = document.querySelector('.tags-list');
 const tagCardsDiv = document.querySelector('.tag-cards');
 const templates = document.getElementsByTagName('template')[0].content;
 const tagListItem = templates.querySelector('.selected-tag').cloneNode(true);
@@ -24,8 +24,30 @@ const aliasItem = templates.querySelector('.alias-item').cloneNode(true);
 // ==========================================================================
 document.addEventListener('DOMContentLoaded', async () => {
     initTheme();
-    initSearch();
+
+    const searchInput = document.querySelector('#search-input');
+    const clearSearch = document.querySelector('#clear-search-btn');
+    
+    // Initialize clear button visibility
+    clearSearch.hidden = !searchInput.value;
+    
+    // Handle search input
+    searchInput.oninput = debounce((e) => {
+        clearSearch.hidden = !e.target.value;
+        handleSearch(e);
+    }, 300);
+    
+    // Handle clear button click
+    clearSearch.onclick = (e) => {
+        e.stopPropagation();
+        searchInput.value = '';
+        clearSearch.hidden = true;
+        handleSearch({ target: searchInput });
+        searchInput.focus();
+    };
+
     await loadAllTagsWithStructure();
+    initScrollToTop();  // Move initialization here, after structure is loaded
 
     // Get initial value from the node
     if (window.opener) {
@@ -46,34 +68,42 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
+function initScrollToTop() {
+    const scrollBtn = document.querySelector('#scroll-top');
+    
+    // Initial state
+    scrollBtn.hidden = true;
+
+    // Add scroll listener to the tag cards container
+    tagCardsDiv.onscroll = () => scrollBtn.hidden = tagCardsDiv.scrollTop < 200;
+
+    // Scroll to top when clicked
+    scrollBtn.onclick = () => tagCardsDiv.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
 // ==========================================================================
 // Theme Management
 // ==========================================================================
 function initTheme() {
-    const themeToggle = document.getElementById('themeToggle');
+    const themeToggle = document.querySelector('#theme-toggle');
     const root = document.documentElement;
-    
+
     // Set initial theme from localStorage or default to dark
     const savedTheme = localStorage.getItem('theme') || 'dark';
     root.setAttribute('data-theme', savedTheme);
-    
-    themeToggle.addEventListener('click', () => {
+
+    themeToggle.onclick = () => {
         const currentTheme = root.getAttribute('data-theme');
         const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-        
+
         root.setAttribute('data-theme', newTheme);
         localStorage.setItem('theme', newTheme);
-    });
+    };
 }
 
 // ==========================================================================
 // Search Functions
 // ==========================================================================
-function initSearch() {
-    const searchInput = document.getElementById('searchInput');
-    searchInput.addEventListener('input', debounce(handleSearch, 300));
-}
-
 function debounce(func, wait) {
     let timeout;
     return function executedFunction(...args) {
@@ -89,7 +119,7 @@ function debounce(func, wait) {
 function handleSearch(event) {
     const searchTerm = event.target.value.toLowerCase();
     if (!currentTags) return;
-    
+
     if (!searchTerm) {
         renderCards(currentTags);
         return;
@@ -98,11 +128,9 @@ function handleSearch(event) {
     const filteredTags = currentTags.filter(tag => {
         // Search in tag name
         if (tag.name.toLowerCase().includes(searchTerm)) return true;
-        
+
         // Search in aliases
-        if (tag.alias?.some(alias => alias.toLowerCase().includes(searchTerm))) return true;
-        
-        return false;
+        return !!tag.alias?.some(alias => alias.toLowerCase().includes(searchTerm));
     });
 
     renderCards(filteredTags);
@@ -114,7 +142,7 @@ function handleSearch(event) {
 async function loadAllTagsWithStructure() {
     try {
         const response = await fetch('/extensions/ComfyUI-prompt-builder/api/files');
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        if (!response.ok) return console.error(response.error);
         tagStructure = { children: await response.json() };
         renderFileBrowser(tagStructure);
     } catch (error) {
@@ -126,7 +154,7 @@ async function loadTagsFromFile(filePath) {
     // If we already have the tags in the structure, use them
     let currentNode = tagStructure;
     const pathParts = filePath.split('/');
-    
+
     for (const part of pathParts) {
         if (!currentNode?.children?.[part]) {
             console.error('Path not found in structure:', filePath);
@@ -134,7 +162,7 @@ async function loadTagsFromFile(filePath) {
         }
         currentNode = currentNode.children[part];
     }
-    
+
     if (currentNode.tags) {
         currentTags = currentNode.tags;  // Store current tags
         renderCards(currentNode.tags);
@@ -155,7 +183,7 @@ async function loadTagsFromFile(filePath) {
 }
 
 function renderFileBrowser(structure) {
-    const fileBrowser = document.getElementById('fileBrowser');
+    const fileBrowser = document.querySelector('#file-browser');
     fileBrowser.innerHTML = '';
 
     function createItem(name, data) {
@@ -167,11 +195,10 @@ function renderFileBrowser(structure) {
 
             const header = element.querySelector('.folder-header');
             const content = element.querySelector('.folder-content');
-            
+
             header.onclick = (e) => {
                 e.stopPropagation();
-                content.classList.toggle('hidden');
-                element.classList.toggle('open');
+                content.hidden = !content.hidden;
             };
 
             if (data.children) {
@@ -188,6 +215,7 @@ function renderFileBrowser(structure) {
             element.querySelector('.file-name').textContent = name.replace(/\.ya?ml$/, '');
 
             element.onclick = (e) => {
+                tagCardsDiv.scrollTop = 0;  // Reset scroll position instantly
                 e.stopPropagation();
                 loadTagsFromFile(data.path);
                 document.querySelector('.file-item.active')?.classList.remove('active');
@@ -218,26 +246,26 @@ function renderCards(tags) {
         // Set content
         element.querySelector('.tag-title').textContent = tag.name;
 
-        if (tag.wiki_link) element.querySelector('.link-btn').onclick = async (e) => {
+        if (tag.wikiURL) element.querySelector('#link-btn').onclick = async (e) => {
             e.stopPropagation();
-            window.open(tag.wiki_link, '_blank');
+            window.open(tag.wikiURL, '_blank');
         };
 
         // Add action button handlers
-        element.querySelector('.copy-btn').onclick = async (e) => {
+        element.querySelector('#copy-btn').onclick = async (e) => {
             e.stopPropagation();
             await navigator.clipboard.writeText(tag.name);
         };
-        
+
         // Create alias elements using template
         if (tag.alias && tag.alias.length > 0) {
             const aliasContainer = element.querySelector('.tag-alias');
             aliasContainer.innerHTML = '';
-            
+
             tag.alias.forEach(alias => {
                 const newAliasItem = document.importNode(aliasItem, true);
                 if (selectedTags[alias]) newAliasItem.classList.add('selected');
-                newAliasItem.id = `n-${alias.replace(' ', '_')}`;
+                newAliasItem.id = `n-${alias.replaceAll(' ', '_')}`;
                 newAliasItem.querySelector('.alias-text').textContent = alias;
                 newAliasItem.querySelector('.like-btn').onclick = (e) => {
                     e.stopPropagation();
@@ -257,7 +285,7 @@ function renderCards(tags) {
 // Selected Tags Functions
 // ==========================================================================
 function addSelectedTagToUI(name, displayName) {
-    const safeId = name.replace(' ', '_');
+    const safeId = name.replaceAll(' ', '_');
     const element = document.importNode(tagListItem, true);
     element.id = `n-${safeId}`;
 
@@ -282,7 +310,7 @@ function addSelectedTagToUI(name, displayName) {
 }
 
 function toggleTag(name, displayName) {
-    const safeId = name.replace(' ', '_');
+    const safeId = name.replaceAll(' ', '_');
     if (selectedTags[name]) {
         delete selectedTags[name];
         tagList.querySelector(`.selected-tag#n-${safeId}`)?.remove();

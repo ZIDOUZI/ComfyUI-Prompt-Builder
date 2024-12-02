@@ -6,7 +6,7 @@ function addWebButtonWidget(node) {
         name: "button",
         type: "button",
         callback: async function () {
-            const editorUrl = new URL(window.location.origin + '/extensions/ComfyUI-prompt-builder/editor.html');
+            const editorUrl = new URL(window.location.origin + '/extensions/ComfyUI-prompt-builder/web/editor.html');
             editorUrl.searchParams.set('nodeId', node.id);
 
             const textWidget = node.widgets.find(w => w.name === "text");

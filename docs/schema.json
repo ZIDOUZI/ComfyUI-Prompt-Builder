@@ -5,12 +5,12 @@
   "definitions": {
     "tag": {
       "type": "object",
-      "required": ["name", "wiki_link"],
+      "required": ["name", "wikiURL"],
       "properties": {
         "name": {
           "type": "string"
         },
-        "wiki_link": {
+        "wikiURL": {
           "type": "string"
         },
         "alias": {

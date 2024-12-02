@@ -58,12 +58,26 @@ body {
     line-height: 1.6;
 }
 
+[hidden] {
+    display: none;
+}
+
+svg {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    width: 18px;
+    height: 18px;
+}
+
 /* ==========================================================================
    2. Layout & Grid
    ========================================================================== */
 .container {
     display: grid;
-    grid-template-columns: 250px minmax(300px, 1fr) 300px;
+    grid-template-columns: minmax(200px, 4fr) minmax(450px, 9fr) minmax(300px, 6fr);
     gap: 8px;
     height: 100vh;
     padding: 8px;
@@ -73,7 +87,7 @@ body {
 /* ==========================================================================
    3. Panels
    ========================================================================== */
-.left-panel, .center-panel, .right-panel {
+.panel {
     background: var(--bg-panel);
     border-radius: 8px;
     box-shadow: var(--shadow-sm);
@@ -83,87 +97,30 @@ body {
     transition: box-shadow 0.2s;
 }
 
-.left-panel:hover, .center-panel:hover, .right-panel:hover {
+.panel:hover {
     box-shadow: var(--shadow-md);
 }
 
 .panel-header {
     padding: 12px;
+    min-height: 50px;
     background-color: var(--bg-panel);
     border-bottom: 1px solid var(--border-color);
     font-weight: 600;
     color: var(--text-header);
     font-size: 15px;
-}
-
-.header-content {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-}
-
-/* Theme Toggle Button */
-.theme-toggle {
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 8px;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
     display: flex;
     align-items: center;
-    justify-content: center;
-    position: relative;
-    transition: background-color 0.3s;
-}
-
-.theme-toggle:hover {
-    background-color: var(--bg-hover);
-}
-
-.theme-toggle svg {
-    width: 20px;
-    height: 20px;
-    position: absolute;
-    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1),
-                opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.theme-toggle .sun-icon {
-    opacity: 0;
-    transform: scale(0.5) rotate(-90deg);
-    stroke-width: 2;
-    color: #fbbf24;
-}
-
-.theme-toggle .moon-icon {
-    opacity: 1;
-    transform: scale(1) rotate(0);
-    stroke-width: 2;
-    color: #94a3b8;
-}
-
-/* Light theme styles */
-:root[data-theme="light"] .theme-toggle .sun-icon {
-    opacity: 1;
-    transform: scale(1) rotate(0);
-}
-
-:root[data-theme="light"] .theme-toggle .moon-icon {
-    opacity: 0;
-    transform: scale(0.5) rotate(90deg);
-}
-
-/* Remove old theme switch styles */
-.theme-switch {
-    display: none;
 }
 
 .panel-content {
+    position: relative;
     flex: 1;
     overflow-y: auto;
-    padding: 8px;
+    height: calc(100vh - 120px);
+    /* Set a fixed height minus header */
+    padding: 4px;
+    margin: 4px;
 }
 
 .panel-footer {
@@ -174,49 +131,139 @@ body {
     gap: 8px;
 }
 
+.center-panel {
+    .panel-header {
+        padding: 0;
+    }
+
+    .search-container {
+        padding: 0 8px;
+    }
+
+    .panel-content {
+        display: flex;
+        flex-direction: column;
+    }
+}
+
+/* Theme Toggle Button */
+#theme-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 6px;
+    margin: 0 4px;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    transition: background-color 0.3s;
+
+    svg {
+        width: 20px;
+        height: 20px;
+        position: absolute;
+        transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+            opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .sun-icon {
+        opacity: 0;
+        transform: scale(0.5) rotate(-90deg);
+        stroke-width: 2;
+        stroke: #fbbf24;
+    }
+
+    .moon-icon {
+        opacity: 1;
+        transform: scale(1) rotate(0);
+        stroke-width: 2;
+        stroke: #94a3b8;
+    }
+}
+
+#theme-toggle:hover {
+    background-color: var(--bg-hover);
+}
+
+[data-theme="light"] #theme-toggle {
+    .sun-icon {
+        opacity: 1;
+        transform: scale(1) rotate(0);
+    }
+
+    .moon-icon {
+        opacity: 0;
+        transform: scale(0.5) rotate(90deg);
+    }
+}
+
 /* ==========================================================================
    4. Search
    ========================================================================== */
 .search-container {
-    width: 100%;
     position: relative;
+    flex: 1;
+    display: flex;
+    align-items: center;
 }
 
-#searchInput {
+#search-input {
     width: 100%;
-    padding: 6px 12px;
+    /* Add right padding for the clear button */
+    padding: 8px 30px 8px 12px;
     border: 1px solid var(--border-color);
-    border-radius: 6px;
-    font-size: 13px;
-    outline: none;
-    transition: all 0.2s;
+    border-radius: 4px;
     background-color: var(--bg-hover);
     color: var(--text-primary);
 }
 
-#searchInput:focus {
+#search-input:focus {
     border-color: #3b82f6;
     box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
     background-color: var(--bg-panel);
 }
 
-#searchInput::placeholder {
+#search-input::placeholder {
     color: var(--text-secondary);
 }
 
-/* Center panel specific header */
-.center-panel .panel-header {
-    padding: 8px;
+#clear-search-btn {
+    position: absolute;
+    right: 8px;
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    font-size: 18px;
+    cursor: pointer;
+    margin: 0 6px;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+}
+
+#clear-search-btn:hover {
+    opacity: 1;
 }
 
 /* ==========================================================================
    5. Tag Cards
    ========================================================================== */
 .tag-cards {
+    flex: 1;
+    overflow-y: auto;
+    /* Space for scrollbar */
+    padding: 4px 10px 4px 4px;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 8px;
-    padding: 4px;
 }
 
 .tag-card {
@@ -224,22 +271,14 @@ body {
     padding: 12px;
     border-radius: 8px;
     border: 1px solid var(--border-color);
-    cursor: pointer;
     transition: all 0.2s ease;
     box-shadow: var(--shadow-sm);
     height: fit-content;
 }
 
 .tag-card:hover {
-    transform: translateY(-2px);
+    transform: translateY(-3px);
     box-shadow: var(--shadow-md);
-    border-color: var(--border-color);
-}
-
-.tag-card.selected {
-    background-color: var(--bg-hover);
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 1px #3b82f6;
 }
 
 .tag-header {
@@ -257,23 +296,12 @@ body {
 }
 
 .tag-alias {
+    /* display: flex;
+    flex-wrap: wrap;
+    gap: 4px; */
     font-size: 12px;
     color: var(--text-secondary);
-    margin-top: 8px;
-}
-
-.tag-info {
-    font-size: 14px;
-    color: var(--text-secondary);
-    margin-bottom: 8px;
-}
-
-.tag-weight {
-    font-size: 14px;
-    color: var(--text-secondary);
-    background: var(--bg-hover);
-    padding: 2px 8px;
-    border-radius: 4px;
+    margin: 8px 0;
 }
 
 .tag-description {
@@ -283,53 +311,52 @@ body {
     line-height: 1.4;
 }
 
-.tag-aliases {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    margin-top: 5px;
-}
-
-.tag-wiki {
-    color: var(--link-color);
-    text-decoration: none;
-}
-
-.tag-wiki:hover {
-    text-decoration: underline;
-}
-
 .alias-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 2px 6px;
-    margin-top: 4px;
+    padding: 0 4px 0 10px;
+    margin-top: 6px;
     background: var(--bg-hover);
-    border-radius: 3px;
-    font-size: 16px;
-    color: var(--text-color);
-    border-left: 2px solid transparent;
-    transition: all 0.2s ease;
-}
-
-.alias-item.selected {
-    background: var(--bg-active);
-    border-left-color: #3b82f6;
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    border: 1px solid transparent;
+    
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    position: relative;
+    overflow: hidden;
+    width: fit-content;
 }
 
 .alias-item:hover {
     background: var(--bg-panel);
-    transform: translateX(4px);
+    transform: translateX(4px) translateY(-1px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
-.alias-text {
-    flex: 1;
+.alias-item.selected {
+    background: var(--bg-active);
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.1),
+                0 4px 8px rgba(59, 130, 246, 0.1);
 }
 
-.alias-actions {
-    display: flex;
-    gap: 4px;
+.alias-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 3px;
+    background: #3b82f6;
+    transform: scaleX(0);
+    transition: transform 0.2s ease;
+}
+
+.alias-item:hover::before, .alias-item.selected::before {
+    transform: scaleX(1);
 }
 
 .alias-btn {
@@ -342,27 +369,39 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--text-secondary);
     opacity: 0.5;
-    transition: all 0.2s;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.alias-btn:hover {
+.alias-item.selected .alias-btn {
+    opacity: 0.7;
+}
+
+.alias-item .alias-btn:hover {
     opacity: 1;
-    background: var(--bg-panel);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.tag-actions {
+.like-btn svg {
+    color: #ef4444;
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
+    stroke: currentColor;
+}
+
+.tag-cards .tag-actions {
     display: flex;
     gap: 6px;
 }
 
-.action-btn {
+.tag-cards .tag-actions .action-btn {
     width: 28px;
     height: 28px;
     border: none;
-    border-radius: 6px;
-    background: var(--bg-hover);
+    color: var(--text-secondary);
+    background: none;
     cursor: pointer;
     transition: all 0.2s;
     display: flex;
@@ -370,18 +409,8 @@ body {
     justify-content: center;
 }
 
-.action-btn:hover {
-    background: var(--bg-panel);
+.tag-cards .tag-actions .action-btn:hover {
     transform: scale(1.05);
-}
-
-.action-btn .icon {
-    font-size: 12px;
-    opacity: 0.8;
-}
-
-.tag-content {
-    margin-bottom: 15px;
 }
 
 /* ==========================================================================
@@ -390,16 +419,12 @@ body {
 .selected-tag {
     display: flex;
     align-items: flex-start;
-    gap: 8px;
-    padding: 8px 12px;
-    background: var(--bg-hover);
+    padding: 4px 12px;
     border-radius: 6px;
-    margin-bottom: 8px;
-    border: 1px solid var(--border-color);
 }
 
 .selected-tag:hover {
-    background: var(--bg-panel);
+    background: var(--bg-hover);
 }
 
 .tag-name {
@@ -410,84 +435,45 @@ body {
 }
 
 .tag-weight {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--text-secondary);
     font-weight: 500;
 }
 
-.tag-controls {
+.tags-list .tag-actions {
     display: flex;
+    flex-direction: row;
     gap: 4px;
     margin-top: 1px;
 }
 
-.tag-controls .tag-list-btn {
-    width: 18px;
-    height: 18px;
+.tags-list .tag-actions .action-btn {
+    padding: 0;
+    cursor: pointer;
+    font-size: 12px;
+    width: 16px;
+    height: 16px;
     border: none;
     border-radius: 50%;
-    background: var(--bg-hover);
-    cursor: pointer;
+    background: var(--bg-panel);
     transition: all 0.15s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
 }
 
-.tag-controls .tag-list-btn:hover {
-    background: var(--bg-panel);
-    transform: scale(1.1);
+.tags-list .tag-actions .action-btn:hover {
+    opacity: 0.9;
+    transform: scale(1.05);
 }
 
-.tag-controls .tag-list-btn .icon {
-    font-size: 8px;
-    line-height: 1;
-}
-
-.tag-list-weight {
-    font-size: 12px;
-    color: var(--text-secondary);
-    font-family: monospace;
-}
-
-.tag-list-display {
-    font-size: 13px;
-    color: var(--text-secondary);
-    margin-top: 4px;
-}
-
-.tag-list-actions {
-    display: flex;
-    gap: 4px;
-}
-
-.tag-list-btn {
-    width: 18px;
-    height: 18px;
-    border: none;
-    border-radius: 50%;
-    background: var(--bg-hover);
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-}
-
-.tag-list-btn:hover {
-    background: var(--bg-panel);
-}
-
-.tag-list-btn .icon {
-    font-size: 12px;
+.tags-list .tag-actions .action-btn svg {
+    width: 16px;
+    height: 16px;
 }
 
 /* ==========================================================================
    7. File Browser
    ========================================================================== */
-.folder-item, .file-item {
+.folder-item,
+.file-item {
     cursor: pointer;
     user-select: none;
     font-size: 13px;
@@ -505,18 +491,6 @@ body {
     margin: 2px 0;
 }
 
-.folder-item.open > .folder-content {
-    display: block;
-}
-
-.folder-item.open > .folder-header {
-    background-color: var(--bg-hover);
-}
-
-.folder-content.hidden {
-    display: none;
-}
-
 .file-item {
     display: flex;
     align-items: center;
@@ -524,22 +498,32 @@ body {
     border-radius: 6px;
 }
 
-.folder-header:hover, .file-item:hover {
-    background-color: var(--bg-hover);
-}
-
 .file-item.active {
     background-color: var(--bg-active);
     color: #3b82f6;
 }
 
-.folder-icon, .file-icon {
-    margin-right: 8px;
-    font-size: 13px;
-    opacity: 0.7;
+.folder-header:hover,
+.file-item:hover {
+    background-color: var(--bg-hover);
 }
 
-.folder-name, .file-name {
+.folder-icon {
+    margin-right: 8px;
+    font-size: 13px;
+    color: #f59e0b;
+    fill: rgba(245, 158, 11, 0.1);
+}
+
+.file-icon {
+    margin-right: 8px;
+    font-size: 13px;
+    color: #60a5fa;
+    fill: rgba(96, 165, 250, 0.1);
+}
+
+.folder-name,
+.file-name {
     font-size: 13px;
     flex: 1;
     white-space: nowrap;
@@ -550,63 +534,6 @@ body {
 /* ==========================================================================
    8. Buttons & Controls
    ========================================================================== */
-.tag-actions {
-    display: flex;
-    gap: 6px;
-}
-
-.action-btn {
-    width: 28px;
-    height: 28px;
-    border: none;
-    border-radius: 6px;
-    background: var(--bg-hover);
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.action-btn:hover {
-    background: var(--bg-panel);
-    transform: scale(1.05);
-}
-
-.action-btn .icon {
-    font-size: 12px;
-    opacity: 0.8;
-}
-
-.tag-controls button {
-    padding: 4px 8px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 12px;
-    transition: all 0.2s;
-}
-
-.increase-weight {
-    background-color: #2ecc71;
-    color: white;
-}
-
-.decrease-weight {
-    background-color: #e74c3c;
-    color: white;
-}
-
-.remove-tag {
-    background-color: #95a5a6;
-    color: white;
-}
-
-.tag-controls button:hover {
-    opacity: 0.9;
-    transform: scale(1.05);
-}
-
 .footer-button {
     padding: 8px 16px;
     border: none;
@@ -623,7 +550,7 @@ body {
 
 .commit-button {
     background-color: #3b82f6;
-    color: white;
+    color: var(--text-primary);
 }
 
 .commit-button:hover {
@@ -631,12 +558,42 @@ body {
 }
 
 .close-button {
-    background-color: var(--bg-hover);
-    color: var(--text-secondary);
+    background-color: var(--bg-main);
+    color: var(--text-primary);
 }
 
 .close-button:hover {
-    background-color: var(--bg-panel);
+    background-color: var(--bg-hover);
+}
+
+/* Floating Action Button */
+.fab {
+    position: absolute;
+    /* Change from fixed to absolute */
+    bottom: 20px;
+    right: 20px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: var(--bg-active);
+    color: var(--text-primary);
+    border: none;
+    cursor: pointer;
+    font-size: 20px;
+    z-index: 1000;
+    opacity: 0.8;
+    transition: all 0.3s ease;
+    /* Smooth transition for all properties */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    /* Add shadow for better visibility */
+}
+
+.fab:hover {
+    opacity: 1;
+    transform: translateY(-2px);
+    /* Slight lift effect on hover */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    /* Stronger shadow on hover */
 }
 
 /* ==========================================================================
@@ -663,41 +620,9 @@ body {
 /* ==========================================================================
    10. Responsive Design
    ========================================================================== */
-@media (min-width: 1600px) {
-    .tag-cards {
-        grid-template-columns: repeat(3, 1fr);
-    }
-}
 
-@media (max-width: 1400px) {
-    .tag-cards {
-        grid-template-columns: repeat(2, 1fr);
-    }
+@media (max-width: 1000px) {
     .container {
-        grid-template-columns: 200px minmax(600px, 1fr) 250px;
-    }
-}
-
-@media (max-width: 1200px) {
-    .tag-cards {
-        grid-template-columns: 1fr;
-    }
-    .container {
-        grid-template-columns: 200px minmax(350px, 1fr) 250px;
-    }
-}
-
-@media (max-width: 850px) {
-    .tag-cards {
-        grid-template-columns: repeat(2, 1fr);
-    }
-    .container {
-        grid-template-columns: 1fr;
-    }
-}
-
-@media (max-width: 600px) {
-    .tag-cards {
         grid-template-columns: 1fr;
     }
 }
