@@ -43,14 +43,16 @@
             <div class="alias-actions">
                 <button class="alias-btn like-btn" title="Like alias">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                        <path
+                            d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z">
+                        </path>
                     </svg>
                 </button>
             </div>
         </div>
 
         <!-- Selected Tag Template -->
-        <div class="selected-tag">
+        <div class="list-item selected-tag" draggable="true">
             <div class="tag-name"></div>
             <div class="tag-actions">
                 <button class="action-btn decrease-weight" title="Decrease weight" style="color: #e74c3c">
@@ -75,22 +77,25 @@
         </div>
 
         <!-- File Browser Templates -->
-        <div class="folder-item">
-            <div class="folder-header">
-                <svg class="folder-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+        <div class="list-item folder">
+            <div class="header">
+                <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
                     <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
                 </svg>
-                <span class="folder-name"></span>
+                <span class="name"></span>
             </div>
-            <div class="folder-content" hidden></div>
+            <div class="content" hidden></div>
         </div>
 
-        <div class="file-item">
-            <svg class="file-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <polyline points="14 2 14 8 20 8"></polyline>
-            </svg>
-            <span class="file-name"></span>
+        <!-- File Template -->
+        <div class="list-item file">
+            <div class="header">
+                <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                </svg>
+                <span class="name"></span>
+            </div>
         </div>
     </template>
 
@@ -99,7 +104,19 @@
         <!-- Left Panel: File Browser -->
         <div class="panel left-panel">
             <div class="panel-header">Files</div>
-            <div class="panel-content" id="file-browser"></div>
+            <div class="panel-content" id="file-browser">
+                <div class="list-item" id="reset">
+                    <div class="header">
+                        <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                            <path d="M21 2v6h-6"></path>
+                            <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
+                            <path d="M3 22v-6h6"></path>
+                            <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
+                        </svg>
+                        <span class="name">Reset</span>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Center Panel: Tag Cards -->
@@ -107,7 +124,7 @@
             <div class="panel-header">
                 <div class="search-container">
                     <input type="text" id="search-input" placeholder="Search tags...">
-                    <button id="clear-search-btn" title="Clear search">
+                    <button id="clear-search-btn" title="Clear search" hidden>
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
                             <line x1="18" y1="6" x2="6" y2="18"></line>
                             <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -148,7 +165,15 @@
         <div class="panel right-panel">
             <div class="panel-header">
                 Selected Tags
-                <button>TODO</button>
+                <div class="header-actions">
+                    <button class="action-btn" id="sort-btn" onclick="sortSelectedTags()" title="Sort selected tags">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                            <line x1="4" y1="6" x2="20" y2="6"></line>
+                            <line x1="4" y1="12" x2="14" y2="12"></line>
+                            <line x1="4" y1="18" x2="8" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
             </div>
             <div class="panel-content">
                 <div class="tags-list"></div>

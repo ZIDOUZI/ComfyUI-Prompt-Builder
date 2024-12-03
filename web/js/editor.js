@@ -5,9 +5,11 @@
 // ==========================================================================
 // Constants & State
 // ==========================================================================
-let selectedTags = {};
-let tagStructure = null;
-let currentTags = null;  // Store current displayed tags
+let tagStructure;
+let currentTags;  // Store current displayed tags
+
+// Get text widget from source page
+const textWidget = window.opener.app.graph._nodes_by_id[new URLSearchParams(window.location.search).get('nodeId')]?.widgets.find(w => w.name === "text");
 
 // DOM Elements
 const tagList = document.querySelector('.tags-list');
@@ -15,8 +17,8 @@ const tagCardsDiv = document.querySelector('.tag-cards');
 const templates = document.getElementsByTagName('template')[0].content;
 const tagListItem = templates.querySelector('.selected-tag').cloneNode(true);
 const tagCard = templates.querySelector('.tag-card').cloneNode(true);
-const fileItem = templates.querySelector('.file-item').cloneNode(true);
-const folderItem = templates.querySelector('.folder-item').cloneNode(true);
+const fileItem = templates.querySelector('.list-item.file').cloneNode(true);
+const folderItem = templates.querySelector('.list-item.folder').cloneNode(true);
 const aliasItem = templates.querySelector('.alias-item').cloneNode(true);
 
 // ==========================================================================
@@ -24,19 +26,33 @@ const aliasItem = templates.querySelector('.alias-item').cloneNode(true);
 // ==========================================================================
 document.addEventListener('DOMContentLoaded', async () => {
     initTheme();
+    initSearch();
+    initScrollToTop();
 
+    await loadAllTagsWithStructure();
+
+    parseTag(textWidget.value).forEach(tag => {
+        const displayName = tagStructure.flatten.find(t => t.alias.includes(tag.value))?.name;
+        addSelectedTagToUI(tag.value, displayName);
+    });
+});
+
+function initScrollToTop() {
+    const scrollBtn = document.querySelector('#scroll-top');
+    scrollBtn.hidden = true;
+    tagCardsDiv.onscroll = () => scrollBtn.hidden = tagCardsDiv.scrollTop < 200;
+    scrollBtn.onclick = () => tagCardsDiv.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function initSearch() {
     const searchInput = document.querySelector('#search-input');
     const clearSearch = document.querySelector('#clear-search-btn');
-    
-    // Initialize clear button visibility
-    clearSearch.hidden = !searchInput.value;
-    
-    // Handle search input
+
     searchInput.oninput = debounce((e) => {
         clearSearch.hidden = !e.target.value;
         handleSearch(e);
     }, 300);
-    
+
     // Handle clear button click
     clearSearch.onclick = (e) => {
         e.stopPropagation();
@@ -45,52 +61,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         handleSearch({ target: searchInput });
         searchInput.focus();
     };
-
-    await loadAllTagsWithStructure();
-    initScrollToTop();  // Move initialization here, after structure is loaded
-
-    // Get initial value from the node
-    if (window.opener) {
-        const textWidget = window.opener.app.graph._nodes_by_id[new URLSearchParams(window.location.search).get('nodeId')]?.widgets.find(w => w.name === "text");
-        if (textWidget && textWidget.value) {
-            textWidget.value
-                .split(',')
-                .map(t => t.trim())
-                .filter(t => t)
-                .forEach(tag => {
-                    const parsedTags = parseTag(tag);
-                    parsedTags.forEach(parsedTag => {
-                        selectedTags[parsedTag.value] = { weight: parsedTag.weight };
-                        addSelectedTagToUI(parsedTag.value);
-                    });
-                });
-        }
-    }
-});
-
-function initScrollToTop() {
-    const scrollBtn = document.querySelector('#scroll-top');
-    
-    // Initial state
-    scrollBtn.hidden = true;
-
-    // Add scroll listener to the tag cards container
-    tagCardsDiv.onscroll = () => scrollBtn.hidden = tagCardsDiv.scrollTop < 200;
-
-    // Scroll to top when clicked
-    scrollBtn.onclick = () => tagCardsDiv.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// ==========================================================================
-// Theme Management
-// ==========================================================================
 function initTheme() {
     const themeToggle = document.querySelector('#theme-toggle');
     const root = document.documentElement;
 
-    // Set initial theme from localStorage or default to dark
-    const savedTheme = localStorage.getItem('theme') || 'dark';
-    root.setAttribute('data-theme', savedTheme);
+    root.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');
 
     themeToggle.onclick = () => {
         const currentTheme = root.getAttribute('data-theme');
@@ -116,16 +93,15 @@ function debounce(func, wait) {
     };
 }
 
-function handleSearch(event) {
+async function handleSearch(event) {
     const searchTerm = event.target.value.toLowerCase();
-    if (!currentTags) return;
+    if (!tagStructure?.flatten) return;
 
-    if (!searchTerm) {
-        renderCards(currentTags);
-        return;
-    }
+    if (!searchTerm) return await renderCards(currentTags);
 
-    const filteredTags = currentTags.filter(tag => {
+    searchEntries = currentTags.length === 0 ? tagStructure.flatten : currentTags;
+
+    const filteredTags = searchTerm.filter(tag => {
         // Search in tag name
         if (tag.name.toLowerCase().includes(searchTerm)) return true;
 
@@ -133,7 +109,7 @@ function handleSearch(event) {
         return !!tag.alias?.some(alias => alias.toLowerCase().includes(searchTerm));
     });
 
-    renderCards(filteredTags);
+    await renderCards(filteredTags);
 }
 
 // ==========================================================================
@@ -143,8 +119,8 @@ async function loadAllTagsWithStructure() {
     try {
         const response = await fetch('/extensions/ComfyUI-prompt-builder/api/files');
         if (!response.ok) return console.error(response.error);
-        tagStructure = { children: await response.json() };
-        renderFileBrowser(tagStructure);
+        tagStructure = { children: await response.json(), flatten: [] };
+        await traverse();
     } catch (error) {
         console.error('Error loading tag structure:', error);
     }
@@ -158,15 +134,14 @@ async function loadTagsFromFile(filePath) {
     for (const part of pathParts) {
         if (!currentNode?.children?.[part]) {
             console.error('Path not found in structure:', filePath);
-            return;
+            return [];
         }
         currentNode = currentNode.children[part];
     }
 
     if (currentNode.tags) {
         currentTags = currentNode.tags;  // Store current tags
-        renderCards(currentNode.tags);
-        return;
+        return currentNode.tags
     }
 
     // Fallback to API request if tags not in structure
@@ -174,70 +149,66 @@ async function loadTagsFromFile(filePath) {
         const response = await fetch(`/extensions/ComfyUI-prompt-builder/api/tags?file=${filePath}`);
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const tags = await response.json();
-        currentNode.tags = tags;  // Cache the tags in structure
-        currentTags = tags;  // Store current tags
-        renderCards(tags);
+        currentNode.tags = tags;  // Cache the tags in structure]
+        return tags;  // Store current tags
     } catch (error) {
         console.error('Error loading tags:', error);
     }
 }
 
-function renderFileBrowser(structure) {
+async function traverse() {
     const fileBrowser = document.querySelector('#file-browser');
-    fileBrowser.innerHTML = '';
+    fileBrowser.querySelector('.list-item#reset').onclick = async (e) => {
+        e.stopPropagation();
+        currentTags = [];
+        await renderCards(currentTags);
+    };
 
-    function createItem(name, data) {
-        let element;
+    function compare([nameA, dataA], [nameB, dataB]) {
+        if (dataA.type !== dataB.type) return dataA.type === 'directory' ? -1 : 1;
+        return nameA.localeCompare(nameB);
+    }
 
-        if (data.type === 'directory') {
-            element = document.importNode(folderItem, true);
-            element.querySelector('.folder-name').textContent = name;
+    async function inner(array, base) {
+        for (const [name, data] of array.sort(compare)) {
+            let element;
+            if (data.type === 'directory') {
+                element = document.importNode(folderItem, true);
+                const content = element.querySelector('.content');
+                element.querySelector('.name').textContent = name;
+                element.querySelector('.header').onclick = (e) => {
+                    e.stopPropagation();
+                    content.hidden = !content.hidden;
+                };
 
-            const header = element.querySelector('.folder-header');
-            const content = element.querySelector('.folder-content');
+                await inner(Object.entries(data.children), element.querySelector('.content'));
+            } else {
+                element = document.importNode(fileItem, true);
+                element.querySelector('.name').textContent = name.replace(/\.ya?ml$/, '');
+                element.onclick = async (e) => {
+                    tagCardsDiv.scrollTop = 0;  // Reset scroll position instantly
+                    e.stopPropagation();
+                    currentTags = await loadTagsFromFile(data.path);
+                    await renderCards(currentTags);
+                    document.querySelector('.list-item.file.active')?.classList.remove('active');
+                    element.classList.add('active');
+                };
 
-            header.onclick = (e) => {
-                e.stopPropagation();
-                content.hidden = !content.hidden;
-            };
-
-            if (data.children) {
-                Object.entries(data.children)
-                    .sort(([nameA, dataA], [nameB, dataB]) => {
-                        if (dataA.type !== dataB.type) return dataA.type === 'directory' ? -1 : 1;
-                        return nameA.localeCompare(nameB);
-                    }).forEach(([childName, childData]) => {
-                        content.appendChild(createItem(childName, childData));
-                    });
+                tagStructure.flatten.push(...await loadTagsFromFile(data.path));
             }
-        } else {
-            element = document.importNode(fileItem, true);
-            element.querySelector('.file-name').textContent = name.replace(/\.ya?ml$/, '');
 
-            element.onclick = (e) => {
-                tagCardsDiv.scrollTop = 0;  // Reset scroll position instantly
-                e.stopPropagation();
-                loadTagsFromFile(data.path);
-                document.querySelector('.file-item.active')?.classList.remove('active');
-                element.classList.add('active');
-            };
+            base.appendChild(element);
         }
-
-        return element;
     }
 
     // Sort entries: directories first, then files
-    Object.entries(structure.children).sort(([, a], [, b]) => {
-        return a.type === b.type ? 0 : a.type === 'directory' ? -1 : 1;
-    }).forEach(([name, data]) => {
-        fileBrowser.appendChild(createItem(name, data));
-    });
+    await inner(Object.entries(tagStructure.children), fileBrowser);
 }
 
 // ==========================================================================
 // Tag Card Functions
 // ==========================================================================
-function renderCards(tags) {
+async function renderCards(tags) {
     tagCardsDiv.innerHTML = '';
 
     tags.forEach(tag => {
@@ -263,15 +234,15 @@ function renderCards(tags) {
             aliasContainer.innerHTML = '';
 
             tag.alias.forEach(alias => {
-                const newAliasItem = document.importNode(aliasItem, true);
-                if (selectedTags[alias]) newAliasItem.classList.add('selected');
-                newAliasItem.id = `n-${alias.replaceAll(' ', '_')}`;
-                newAliasItem.querySelector('.alias-text').textContent = alias;
-                newAliasItem.querySelector('.like-btn').onclick = (e) => {
+                const aliasItem = document.importNode(aliasItem, true);
+                aliasItem.id = `n-${alias.replaceAll(' ', '_')}`;
+                if (tagList.querySelector(`.selected-tag#n-${aliasItem.id}`)) aliasItem.classList.add('selected');
+                aliasItem.querySelector('.alias-text').textContent = alias;
+                aliasItem.querySelector('.like-btn').onclick = (e) => {
                     e.stopPropagation();
                     toggleTag(alias, tag.name);
                 };
-                aliasContainer.appendChild(newAliasItem);
+                aliasContainer.appendChild(aliasItem);
             });
         }
 
@@ -284,38 +255,119 @@ function renderCards(tags) {
 // ==========================================================================
 // Selected Tags Functions
 // ==========================================================================
-function addSelectedTagToUI(name, displayName) {
+function sortSelectedTags() {
+    // Get all selected tags and sort them based on their position in flatten
+    const selectedTagElements = Array.from(tagList.children);
+    selectedTagElements.sort((a, b) => {
+        const nameA = a['data-name'];
+        const nameB = b['data-name'];
+        return tagStructure.flatten.findIndex(t => t.alias.includes(nameA)) - tagStructure.flatten.findIndex(t => t.alias.includes(nameB));
+    });
+
+    // Re-append tags in sorted order
+    selectedTagElements.forEach(tag => tagList.appendChild(tag));
+}
+
+function findIndicator() {
+    let line = tagList.querySelector('.drag-insert-line');
+    if (line) return line;
+    line = document.createElement('div');
+    line.className = 'drag-insert-line';
+    tagList.appendChild(line);
+    return line;
+}
+
+function handleDragStart(e) {
+    const item = e.target.closest('.selected-tag');
+    if (!item) return;
+    
+    item.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', item['data-name']);
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+
+    const item = e.target.closest('.selected-tag');
+    if (!item || item.classList.contains('dragging')) return;
+
+    // Get the container's scroll position and bounds
+    const containerRect = tagList.getBoundingClientRect();
+    const rect = item.getBoundingClientRect();
+    
+    // Calculate if we should insert before or after based on mouse position
+    const insertBefore = (e.clientY - rect.top) < (rect.height / 2);
+    
+
+    const listIndicator = findIndicator();
+    // Update insert line position
+    listIndicator.style.top = insertBefore ? 
+        (rect.top - containerRect.top) + 'px' : 
+        (rect.bottom - containerRect.top) + 'px';
+    
+    listIndicator.classList.toggle('drag-insert-before', insertBefore);
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    const draggedItem = tagList.querySelector('.dragging');
+    const dropTarget = e.target.closest('.selected-tag');
+    if (dropTarget && draggedItem) {
+        if (tagList.querySelector('.drag-insert-line.drag-insert-before')) {
+            dropTarget.parentNode.insertBefore(draggedItem, dropTarget);
+        } else {
+            dropTarget.parentNode.insertBefore(draggedItem, dropTarget.nextSibling);
+        }
+    }
+    cleanupDrag();
+}
+
+function handleDragEnd(e) {
+    cleanupDrag();
+}
+
+function cleanupDrag() {
+    tagList.querySelector('.drag-insert-line')?.remove();
+    tagList.querySelector('.dragging')?.classList.remove('dragging');
+}
+
+function addSelectedTagToUI(name, displayName, weight = 1.0) {
     const safeId = name.replaceAll(' ', '_');
     const element = document.importNode(tagListItem, true);
     element.id = `n-${safeId}`;
+    element['data-name'] = name;
+    element['data-weight'] = weight;
+
+    element.ondragstart = handleDragStart;
+    element.ondragover = handleDragOver;
+    element.ondragend = handleDragEnd;
+    element.ondrop = handleDrop;
 
     const tagNameElement = element.querySelector('.tag-name');
     const tagNameText = displayName ? `${name} - ${displayName}` : name;
-    tagNameElement.innerHTML = `${tagNameText} <span class="tag-weight">×${selectedTags[name].weight.toFixed(3)}</span>`;
+    tagNameElement.innerHTML = `${tagNameText} <span class="tag-weight">×${weight.toFixed(3)}</span>`;
 
     function changeWeight(increase) {
-        const weight = (selectedTags[name]?.weight || 1.0) + (increase ? 0.05 : -0.05);
-        selectedTags[name].weight = weight;
+        weight = element['data-weight'];
+        element['data-weight'] = weight = increase ? weight + 0.05 : weight - 0.05;
         tagNameElement.innerHTML = `${tagNameText} <span class="tag-weight">×${weight.toFixed(3)}</span>`;
     }
 
     element.querySelector('.increase-weight').onclick = () => changeWeight(true);
     element.querySelector('.decrease-weight').onclick = () => changeWeight(false);
-    element.querySelector('.remove-tag').onclick = () => {
-        delete selectedTags[name];
-        element.remove();
-    };
+    element.querySelector('.remove-tag').onclick = () => element.remove();
 
     tagList.appendChild(element);
 }
 
 function toggleTag(name, displayName) {
     const safeId = name.replaceAll(' ', '_');
-    if (selectedTags[name]) {
-        delete selectedTags[name];
-        tagList.querySelector(`.selected-tag#n-${safeId}`)?.remove();
+    const selected = tagList.querySelector(`.selected-tag#n-${safeId}`);
+    if (selected) {
+        selected.remove();
     } else {
-        selectedTags[name] = { weight: 1.0 };
         addSelectedTagToUI(name, displayName);
     }
 
@@ -335,22 +387,12 @@ function justClose() {
 }
 
 async function commitChanges() {
-    const tagString = Object.entries(selectedTags)
-        .map(([tagName, data]) => {
-            const weight = data.weight;
-            return weight === 1.0 ? tagName : `${tagName}:${weight.toFixed(2)}`;
-        })
-        .join(', ');
-
-    if (window.opener) {
-        const textWidget = window.opener.app.graph._nodes_by_id[new URLSearchParams(window.location.search).get('nodeId')]?.widgets.find(w => w.name === "text");
-        if (textWidget) {
-            textWidget.value = tagString;
-            window.opener.app.graph.setDirtyCanvas(true, true);
-        }
-    } else {
-        console.error("No opener found");
-    }
+    textWidget.value = tagList.querySelectorAll('.selected-tag').map(tag => {
+        const name = tag['data-name'];
+        const weight = tag['data-weight'];
+        return weight === 1.0 ? name : `${name}:${weight.toFixed(2)}`;
+    }).join(', ');
+    window.opener.app.graph.setDirtyCanvas(true, true);
 }
 
 // ==========================================================================
@@ -463,13 +505,7 @@ function parseTag(tagString) {
 
     while (pos < tagString.length) {
         const tag = parseValue();
-        if (tag) {
-            if (tag.type === 'group') {
-                tags.push(...tag.value);
-            } else {
-                tags.push(tag);
-            }
-        }
+        tags.push(tag);
 
         skipWhitespace();
         if (tagString[pos] === ',') {
