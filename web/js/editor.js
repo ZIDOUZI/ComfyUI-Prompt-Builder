@@ -6,8 +6,11 @@
 // Constants & State
 // ==========================================================================
 let selectedTags = {};
-let tagStructure = null;
-let currentTags = null;  // Store current displayed tags
+let tagStructure;
+let currentTags;  // Store current displayed tags
+
+// Get text widget from source page
+const textWidget = window.opener.app.graph._nodes_by_id[new URLSearchParams(window.location.search).get('nodeId')]?.widgets.find(w => w.name === "text");
 
 // DOM Elements
 const tagList = document.querySelector('.tags-list');
@@ -27,16 +30,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const searchInput = document.querySelector('#search-input');
     const clearSearch = document.querySelector('#clear-search-btn');
-    
+    const sortBtn = document.querySelector('#sort-btn');
+
     // Initialize clear button visibility
     clearSearch.hidden = !searchInput.value;
-    
+
     // Handle search input
     searchInput.oninput = debounce((e) => {
         clearSearch.hidden = !e.target.value;
         handleSearch(e);
     }, 300);
-    
+
     // Handle clear button click
     clearSearch.onclick = (e) => {
         e.stopPropagation();
@@ -46,31 +50,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         searchInput.focus();
     };
 
+    sortBtn.onclick = async (e) => {
+        e.stopPropagation();
+        sortSelectedTags();
+    };
+
     await loadAllTagsWithStructure();
     initScrollToTop();  // Move initialization here, after structure is loaded
 
-    // Get initial value from the node
-    if (window.opener) {
-        const textWidget = window.opener.app.graph._nodes_by_id[new URLSearchParams(window.location.search).get('nodeId')]?.widgets.find(w => w.name === "text");
-        if (textWidget && textWidget.value) {
-            textWidget.value
-                .split(',')
-                .map(t => t.trim())
-                .filter(t => t)
-                .forEach(tag => {
-                    const parsedTags = parseTag(tag);
-                    parsedTags.forEach(parsedTag => {
-                        selectedTags[parsedTag.value] = { weight: parsedTag.weight };
-                        addSelectedTagToUI(parsedTag.value);
-                    });
-                });
-        }
-    }
+    parseTag(textWidget.value).forEach(tag => {
+        selectedTags[tag.value] = { weight: tag.weight };
+        const displayName = tagStructure.flatten.find(t => t.alias.includes(tag.value))?.name;
+        addSelectedTagToUI(tag.value, displayName);
+    });
 });
 
 function initScrollToTop() {
     const scrollBtn = document.querySelector('#scroll-top');
-    
+
     // Initial state
     scrollBtn.hidden = true;
 
@@ -81,9 +78,6 @@ function initScrollToTop() {
     scrollBtn.onclick = () => tagCardsDiv.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// ==========================================================================
-// Theme Management
-// ==========================================================================
 function initTheme() {
     const themeToggle = document.querySelector('#theme-toggle');
     const root = document.documentElement;
@@ -116,16 +110,16 @@ function debounce(func, wait) {
     };
 }
 
-function handleSearch(event) {
+async function handleSearch(event) {
     const searchTerm = event.target.value.toLowerCase();
-    if (!currentTags) return;
+    if (!tagStructure?.flatten) return;
 
     if (!searchTerm) {
-        renderCards(currentTags);
+        await renderCards(currentTags);
         return;
     }
 
-    const filteredTags = currentTags.filter(tag => {
+    const filteredTags = tagStructure.flatten.filter(tag => {
         // Search in tag name
         if (tag.name.toLowerCase().includes(searchTerm)) return true;
 
@@ -133,7 +127,7 @@ function handleSearch(event) {
         return !!tag.alias?.some(alias => alias.toLowerCase().includes(searchTerm));
     });
 
-    renderCards(filteredTags);
+    await renderCards(filteredTags);
 }
 
 // ==========================================================================
@@ -143,8 +137,8 @@ async function loadAllTagsWithStructure() {
     try {
         const response = await fetch('/extensions/ComfyUI-prompt-builder/api/files');
         if (!response.ok) return console.error(response.error);
-        tagStructure = { children: await response.json() };
-        renderFileBrowser(tagStructure);
+        tagStructure = { children: await response.json(), flatten: [] };
+        await traverse();
     } catch (error) {
         console.error('Error loading tag structure:', error);
     }
@@ -158,15 +152,14 @@ async function loadTagsFromFile(filePath) {
     for (const part of pathParts) {
         if (!currentNode?.children?.[part]) {
             console.error('Path not found in structure:', filePath);
-            return;
+            return [];
         }
         currentNode = currentNode.children[part];
     }
 
     if (currentNode.tags) {
         currentTags = currentNode.tags;  // Store current tags
-        renderCards(currentNode.tags);
-        return;
+        return currentNode.tags
     }
 
     // Fallback to API request if tags not in structure
@@ -174,70 +167,62 @@ async function loadTagsFromFile(filePath) {
         const response = await fetch(`/extensions/ComfyUI-prompt-builder/api/tags?file=${filePath}`);
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const tags = await response.json();
-        currentNode.tags = tags;  // Cache the tags in structure
-        currentTags = tags;  // Store current tags
-        renderCards(tags);
+        currentNode.tags = tags;  // Cache the tags in structure]
+        return tags;  // Store current tags
     } catch (error) {
         console.error('Error loading tags:', error);
     }
 }
 
-function renderFileBrowser(structure) {
+async function traverse() {
     const fileBrowser = document.querySelector('#file-browser');
     fileBrowser.innerHTML = '';
 
-    function createItem(name, data) {
-        let element;
+    function compare([nameA, dataA], [nameB, dataB]) {
+        if (dataA.type !== dataB.type) return dataA.type === 'directory' ? -1 : 1;
+        return nameA.localeCompare(nameB);
+    }
 
-        if (data.type === 'directory') {
-            element = document.importNode(folderItem, true);
-            element.querySelector('.folder-name').textContent = name;
+    async function inner(array, base) {
+        for (const [name, data] of array.sort(compare)) {
+            let element;
+            if (data.type === 'directory') {
+                element = document.importNode(folderItem, true);
+                const content = element.querySelector('.folder-content');
+                element.querySelector('.folder-name').textContent = name;
+                element.querySelector('.folder-header').onclick = (e) => {
+                    e.stopPropagation();
+                    content.hidden = !content.hidden;
+                };
 
-            const header = element.querySelector('.folder-header');
-            const content = element.querySelector('.folder-content');
+                await inner(Object.entries(data.children), element.querySelector('.folder-content'));
+            } else {
+                element = document.importNode(fileItem, true);
+                element.querySelector('.file-name').textContent = name.replace(/\.ya?ml$/, '');
+                element.onclick = async (e) => {
+                    tagCardsDiv.scrollTop = 0;  // Reset scroll position instantly
+                    e.stopPropagation();
+                    currentTags = await loadTagsFromFile(data.path);
+                    await renderCards(currentTags);
+                    document.querySelector('.file-item.active')?.classList.remove('active');
+                    element.classList.add('active');
+                };
 
-            header.onclick = (e) => {
-                e.stopPropagation();
-                content.hidden = !content.hidden;
-            };
-
-            if (data.children) {
-                Object.entries(data.children)
-                    .sort(([nameA, dataA], [nameB, dataB]) => {
-                        if (dataA.type !== dataB.type) return dataA.type === 'directory' ? -1 : 1;
-                        return nameA.localeCompare(nameB);
-                    }).forEach(([childName, childData]) => {
-                        content.appendChild(createItem(childName, childData));
-                    });
+                tagStructure.flatten.push(...await loadTagsFromFile(data.path));
             }
-        } else {
-            element = document.importNode(fileItem, true);
-            element.querySelector('.file-name').textContent = name.replace(/\.ya?ml$/, '');
 
-            element.onclick = (e) => {
-                tagCardsDiv.scrollTop = 0;  // Reset scroll position instantly
-                e.stopPropagation();
-                loadTagsFromFile(data.path);
-                document.querySelector('.file-item.active')?.classList.remove('active');
-                element.classList.add('active');
-            };
+            base.appendChild(element);
         }
-
-        return element;
     }
 
     // Sort entries: directories first, then files
-    Object.entries(structure.children).sort(([, a], [, b]) => {
-        return a.type === b.type ? 0 : a.type === 'directory' ? -1 : 1;
-    }).forEach(([name, data]) => {
-        fileBrowser.appendChild(createItem(name, data));
-    });
+    await inner(Object.entries(tagStructure.children), fileBrowser);
 }
 
 // ==========================================================================
 // Tag Card Functions
 // ==========================================================================
-function renderCards(tags) {
+async function renderCards(tags) {
     tagCardsDiv.innerHTML = '';
 
     tags.forEach(tag => {
@@ -284,10 +269,24 @@ function renderCards(tags) {
 // ==========================================================================
 // Selected Tags Functions
 // ==========================================================================
+function sortSelectedTags() {
+    // Get all selected tags and sort them based on their position in flatten
+    const selectedTagElements = Array.from(tagList.children);
+    selectedTagElements.sort((a, b) => {
+        const nameA = a['data-name'];
+        const nameB = b['data-name'];
+        return tagStructure.flatten.findIndex(t => t.alias.includes(nameA)) - tagStructure.flatten.findIndex(t => t.alias.includes(nameB));
+    });
+
+    // Re-append tags in sorted order
+    selectedTagElements.forEach(tag => tagList.appendChild(tag));
+}
+
 function addSelectedTagToUI(name, displayName) {
     const safeId = name.replaceAll(' ', '_');
     const element = document.importNode(tagListItem, true);
     element.id = `n-${safeId}`;
+    element['data-name'] = name;
 
     const tagNameElement = element.querySelector('.tag-name');
     const tagNameText = displayName ? `${name} - ${displayName}` : name;
@@ -335,22 +334,13 @@ function justClose() {
 }
 
 async function commitChanges() {
-    const tagString = Object.entries(selectedTags)
+    textWidget.value = Object.entries(selectedTags)
         .map(([tagName, data]) => {
             const weight = data.weight;
             return weight === 1.0 ? tagName : `${tagName}:${weight.toFixed(2)}`;
         })
         .join(', ');
-
-    if (window.opener) {
-        const textWidget = window.opener.app.graph._nodes_by_id[new URLSearchParams(window.location.search).get('nodeId')]?.widgets.find(w => w.name === "text");
-        if (textWidget) {
-            textWidget.value = tagString;
-            window.opener.app.graph.setDirtyCanvas(true, true);
-        }
-    } else {
-        console.error("No opener found");
-    }
+    window.opener.app.graph.setDirtyCanvas(true, true);
 }
 
 // ==========================================================================
@@ -463,13 +453,7 @@ function parseTag(tagString) {
 
     while (pos < tagString.length) {
         const tag = parseValue();
-        if (tag) {
-            if (tag.type === 'group') {
-                tags.push(...tag.value);
-            } else {
-                tags.push(tag);
-            }
-        }
+        tags.push(tag);
 
         skipWhitespace();
         if (tagString[pos] === ',') {

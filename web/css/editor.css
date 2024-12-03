@@ -111,6 +111,7 @@ svg {
     font-size: 15px;
     display: flex;
     align-items: center;
+    justify-content: space-between;
 }
 
 .panel-content {
@@ -242,7 +243,6 @@ svg {
     margin: 0 6px;
     width: 20px;
     height: 20px;
-    display: flex;
     align-items: center;
     justify-content: center;
     opacity: 0.6;
@@ -262,8 +262,9 @@ svg {
     /* Space for scrollbar */
     padding: 4px 10px 4px 4px;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 8px;
+    align-content: start;
 }
 
 .tag-card {
@@ -396,12 +397,13 @@ svg {
     gap: 6px;
 }
 
-.tag-cards .tag-actions .action-btn {
+/* ==========================================================================
+   6. Selected Tags
+   ========================================================================== */
+#sort-btn {
     width: 28px;
     height: 28px;
-    border: none;
-    color: var(--text-secondary);
-    background: none;
+    padding: 4px;
     cursor: pointer;
     transition: all 0.2s;
     display: flex;
@@ -409,13 +411,6 @@ svg {
     justify-content: center;
 }
 
-.tag-cards .tag-actions .action-btn:hover {
-    transform: scale(1.05);
-}
-
-/* ==========================================================================
-   6. Selected Tags
-   ========================================================================== */
 .selected-tag {
     display: flex;
     align-items: flex-start;
@@ -449,14 +444,8 @@ svg {
 
 .tags-list .tag-actions .action-btn {
     padding: 0;
-    cursor: pointer;
-    font-size: 12px;
     width: 16px;
     height: 16px;
-    border: none;
-    border-radius: 50%;
-    background: var(--bg-panel);
-    transition: all 0.15s;
 }
 
 .tags-list .tag-actions .action-btn:hover {
@@ -534,6 +523,29 @@ svg {
 /* ==========================================================================
    8. Buttons & Controls
    ========================================================================== */
+.action-btn {
+    border: none;
+    background: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border-radius: 4px;
+    color: var(--text-secondary);
+}
+
+.action-btn:hover {
+    background: var(--bg-hover);
+    transform: translateY(-1px);
+}
+
+.action-btn svg {
+    width: 20px;
+    height: 20px;
+}
+
 .footer-button {
     padding: 8px 16px;
     border: none;

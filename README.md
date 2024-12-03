@@ -50,9 +50,10 @@ The extension provides two main nodes:
 
 ## TODO
 
-- [ ] Make a global search
-- [ ] Support fetch tag display name when web loaded
+- [x] Make a global search
+- [x] Support fetch tag display name when web loaded
 - [ ] Support create tag group
+- [ ] Support write sort order into node
 
 ## Acknowledgments
 
