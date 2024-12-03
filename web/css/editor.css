@@ -11,7 +11,6 @@
  * 7. File Browser
  * 8. Buttons & Controls
  * 9. Utilities
- * 10. Responsive Design
  */
 
 /* ==========================================================================
@@ -451,7 +450,7 @@ svg {
     display: flex;
     align-items: flex-start;
     padding: 4px 12px;
-    cursor: grab;
+    cursor: initial;
     transition: background-color 0.2s, transform 0.1s;
     position: relative;
 }
@@ -478,6 +477,7 @@ svg {
 }
 
 .tag-weight {
+    cursor: grab;
     font-size: 11px;
     color: var(--text-secondary);
     font-weight: 500;
@@ -653,10 +653,6 @@ svg {
 ::-webkit-scrollbar-thumb:hover {
     background: var(--text-secondary);
 }
-
-/* ==========================================================================
-   10. Responsive Design
-   ========================================================================== */
 
 @media (max-width: 1000px) {
     .container {

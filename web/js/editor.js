@@ -21,6 +21,11 @@ const fileItem = templates.querySelector('.list-item.file').cloneNode(true);
 const folderItem = templates.querySelector('.list-item.folder').cloneNode(true);
 const aliasItem = templates.querySelector('.alias-item').cloneNode(true);
 
+// Auto-scroll variables
+let autoScrollInterval = null;
+const SCROLL_SPEED = 5;
+const SCROLL_ZONE = 50; // pixels from edge to trigger scroll
+
 // ==========================================================================
 // Initialization
 // ==========================================================================
@@ -97,11 +102,11 @@ async function handleSearch(event) {
     const searchTerm = event.target.value.toLowerCase();
     if (!tagStructure?.flatten) return;
 
-    if (!searchTerm) return await renderCards(currentTags);
+    if (!searchTerm) return await renderCards(currentTags || []);
 
-    searchEntries = currentTags.length === 0 ? tagStructure.flatten : currentTags;
+    searchEntries = currentTags && currentTags.length !== 0 ? currentTags : tagStructure.flatten;
 
-    const filteredTags = searchTerm.filter(tag => {
+    const filteredTags = searchEntries.filter(tag => {
         // Search in tag name
         if (tag.name.toLowerCase().includes(searchTerm)) return true;
 
@@ -234,15 +239,15 @@ async function renderCards(tags) {
             aliasContainer.innerHTML = '';
 
             tag.alias.forEach(alias => {
-                const aliasItem = document.importNode(aliasItem, true);
-                aliasItem.id = `n-${alias.replaceAll(' ', '_')}`;
-                if (tagList.querySelector(`.selected-tag#n-${aliasItem.id}`)) aliasItem.classList.add('selected');
-                aliasItem.querySelector('.alias-text').textContent = alias;
-                aliasItem.querySelector('.like-btn').onclick = (e) => {
+                const aliasElement = document.importNode(aliasItem, true);
+                aliasElement.id = `n-${alias.replace(/[/ ]/g, '_')}`;
+                if (tagList.querySelector(`.selected-tag#n-${aliasElement.id}`)) aliasElement.classList.add('selected');
+                aliasElement.querySelector('.alias-text').textContent = alias;
+                aliasElement.querySelector('.like-btn').onclick = (e) => {
                     e.stopPropagation();
                     toggleTag(alias, tag.name);
                 };
-                aliasContainer.appendChild(aliasItem);
+                aliasContainer.appendChild(aliasElement);
             });
         }
 
@@ -284,6 +289,9 @@ function handleDragStart(e) {
     item.classList.add('dragging');
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', item['data-name']);
+
+    // Start auto-scroll if near edges
+    startAutoScroll(e);
 }
 
 function handleDragOver(e) {
@@ -300,7 +308,6 @@ function handleDragOver(e) {
     // Calculate if we should insert before or after based on mouse position
     const insertBefore = (e.clientY - rect.top) < (rect.height / 2);
     
-
     const listIndicator = findIndicator();
     // Update insert line position
     listIndicator.style.top = insertBefore ? 
@@ -310,11 +317,16 @@ function handleDragOver(e) {
     listIndicator.classList.toggle('drag-insert-before', insertBefore);
 }
 
+function handleDragEnd(e) {
+    cleanupDrag();
+}
+
 function handleDrop(e) {
     e.preventDefault();
     const draggedItem = tagList.querySelector('.dragging');
     const dropTarget = e.target.closest('.selected-tag');
-    if (dropTarget && draggedItem) {
+    
+    if (dropTarget && draggedItem && dropTarget !== draggedItem) {
         if (tagList.querySelector('.drag-insert-line.drag-insert-before')) {
             dropTarget.parentNode.insertBefore(draggedItem, dropTarget);
         } else {
@@ -324,28 +336,67 @@ function handleDrop(e) {
     cleanupDrag();
 }
 
-function handleDragEnd(e) {
-    cleanupDrag();
-}
-
 function cleanupDrag() {
-    tagList.querySelector('.drag-insert-line')?.remove();
+    const indicator = findIndicator();
+    indicator?.['data-interval'] && clearInterval(indicator['data-interval']);
+    indicator?.remove();
     tagList.querySelector('.dragging')?.classList.remove('dragging');
 }
 
+function startAutoScroll(e) {
+
+    const container = tagList;
+    const containerRect = tagList.getBoundingClientRect();
+    const scrollTop = tagList.scrollTop;
+    
+    // Distance from mouse to top/bottom edges
+    const distanceFromTop = e.clientY - containerRect.top;
+    const distanceFromBottom = containerRect.bottom - e.clientY;
+    
+    // Calculate scroll direction and speed
+    let scrollAmount = 0;
+    if (distanceFromTop < SCROLL_ZONE) {
+        // Scroll up - speed increases as you get closer to edge
+        scrollAmount = -SCROLL_SPEED * (1 - distanceFromTop / SCROLL_ZONE);
+    } else if (distanceFromBottom < SCROLL_ZONE) {
+        // Scroll down - speed increases as you get closer to edge
+        scrollAmount = SCROLL_SPEED * (1 - distanceFromBottom / SCROLL_ZONE);
+    }
+    
+    if (scrollAmount !== 0) {
+        findIndicator()['data-interval'] = setInterval(() => {
+            const newScrollTop = container.scrollTop + scrollAmount;
+            if (newScrollTop >= 0 && newScrollTop <= container.scrollHeight - container.clientHeight) {
+                container.scrollTop = newScrollTop;
+                // Trigger dragover to update insert line position
+                const elementAtPoint = document.elementFromPoint(e.clientX, e.clientY);
+                if (elementAtPoint) {
+                    const event = new MouseEvent('dragover', {
+                        clientX: e.clientX,
+                        clientY: e.clientY,
+                        bubbles: true
+                    });
+                    elementAtPoint.dispatchEvent(event);
+                }
+            }
+        }, 16); // ~60fps
+    }
+}
+
 function addSelectedTagToUI(name, displayName, weight = 1.0) {
-    const safeId = name.replaceAll(' ', '_');
+    const safeId = name.replace(/[/ ]/g, '_');
     const element = document.importNode(tagListItem, true);
     element.id = `n-${safeId}`;
     element['data-name'] = name;
     element['data-weight'] = weight;
 
-    element.ondragstart = handleDragStart;
-    element.ondragover = handleDragOver;
-    element.ondragend = handleDragEnd;
-    element.ondrop = handleDrop;
-
     const tagNameElement = element.querySelector('.tag-name');
+    tagNameElement.draggable = true;
+    tagNameElement.ondragstart = handleDragStart;
+    element.ondragover = handleDragOver;
+    element.ondrop = handleDrop;
+    tagNameElement.ondragend = handleDragEnd;
+
     const tagNameText = displayName ? `${name} - ${displayName}` : name;
     tagNameElement.innerHTML = `${tagNameText} <span class="tag-weight">×${weight.toFixed(3)}</span>`;
 
@@ -363,7 +414,7 @@ function addSelectedTagToUI(name, displayName, weight = 1.0) {
 }
 
 function toggleTag(name, displayName) {
-    const safeId = name.replaceAll(' ', '_');
+    const safeId = name.replaceAll(/[/ ]/g, '_');
     const selected = tagList.querySelector(`.selected-tag#n-${safeId}`);
     if (selected) {
         selected.remove();
